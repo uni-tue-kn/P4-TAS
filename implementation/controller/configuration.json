@@ -1,0 +1,656 @@
+{
+    "psfp": {
+        "streams": [
+            {
+                "vid": 42,
+                "stream_handle": 9,
+                "eth_dst": "aa:bb:cc:dd:ee:ff",
+                "dst_port": 1337
+            },
+            {
+                "vid": 47,
+                "stream_handle": 47,
+                "eth_dst": "81:E7:9D:E3:AD:48"
+            },
+            {
+                "vid": 1,
+                "stream_handle": 57,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.7",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 7
+            },
+            {
+                "vid": 1,
+                "stream_handle": 56,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.6",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 6
+            },
+            {
+                "vid": 1,
+                "stream_handle": 55,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.5",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 5
+            },
+            {
+                "vid": 1,
+                "stream_handle": 54,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.4",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 4
+            },
+            {
+                "vid": 1,
+                "stream_handle": 53,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.3",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 3
+            },
+            {
+                "vid": 1,
+                "stream_handle": 52,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.2",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 2
+            },
+            {
+                "vid": 1,
+                "stream_handle": 51,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.1",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 1
+            },
+            {
+                "vid": 1,
+                "stream_handle": 50,
+                "eth_dst": "81:E7:9D:E3:AD:47",
+                "ipv4_src": "192.168.178.0",
+                "overwrite_mac": "81:E7:9D:E3:AD:48",
+                "overwrite_pcp": 0
+            }
+        ],
+        "stream_handles": [
+            {
+                "stream_handle": 9,
+                "stream_gate_instance": 2,
+                "flow_meter_instance": 300
+            },
+            {
+                "stream_handle": 10,
+                "stream_gate_instance": 2,
+                "flow_meter_instance": 300
+            },
+            {
+                "stream_handle": 47,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 302
+            },
+            {
+                "stream_handle": 50,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 51,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 52,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 53,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 54,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 55,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 56,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            },
+            {
+                "stream_handle": 57,
+                "stream_gate_instance": 1,
+                "flow_meter_instance": 500
+            }
+        ],
+        "stream_filters": [
+            {
+                "stream_handle": 9,
+                "stream_block_enable": false,
+                "max_sdu": 1500
+            }
+        ],
+        "stream_gates": [
+            {
+                "stream_gate_id": 1,
+                "schedule": "OPEN",
+                "gate_closed_due_to_invalid_rx_enable": false,
+                "gate_closed_due_to_octets_exceeded_enable": false
+            },
+            {
+                "stream_gate_id": 2,
+                "schedule": "FIFTYFIFTY",
+                "gate_closed_due_to_invalid_rx_enable": false,
+                "gate_closed_due_to_octets_exceeded_enable": false
+            }
+        ],
+        "flow_meters": [
+            {
+                "flow_meter_id": 100,
+                "cir_kbps": 510000,
+                "pir_kbps": 720000,
+                "cbs": 1000,
+                "pbs": 2000,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            },
+            {
+                "flow_meter_id": 200,
+                "cir_kbps": 80000000,
+                "pir_kbps": 90000000,
+                "cbs": 1000,
+                "pbs": 2000,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            },
+            {
+                "flow_meter_id": 300,
+                "cir_kbps": 110000000,
+                "pir_kbps": 120000000,
+                "cbs": 1000,
+                "pbs": 2000,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            },
+            {
+                "flow_meter_id": 301,
+                "cir_kbps": 110000000,
+                "pir_kbps": 120000000,
+                "cbs": 1000,
+                "pbs": 2000,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            },
+            {
+                "flow_meter_id": 302,
+                "cir_kbps": 110000000,
+                "pir_kbps": 120000000,
+                "cbs": 1000,
+                "pbs": 2000,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            },
+            {
+                "flow_meter_id": 400,
+                "cir_kbps": 80000000,
+                "pir_kbps": 90000000,
+                "cbs": 1280,
+                "pbs": 2000,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            },
+            {
+                "flow_meter_id": 500,
+                "cir_kbps": 410000000,
+                "pir_kbps": 420000000,
+                "cbs": 1,
+                "pbs": 2,
+                "drop_yellow": false,
+                "mark_red": false,
+                "color_aware": false
+            }
+        ],
+        "stream_gate_schedules": [
+            {
+                "name": "OPEN",
+                "period": 800000000,
+                "time_shift": 0,
+                "intervals": [
+                    {
+                        "low": 0,
+                        "high": 800000000,
+                        "state": 1,
+                        "ipv": 8,
+                        "octets": 500000
+                    }
+                ]
+            },
+            {
+                "name": "FIFTYFIFTY",
+                "period": 400000000,
+                "time_shift": 0,
+                "intervals": [
+                    {
+                        "low": 0,
+                        "high": 200000000,
+                        "state": 1,
+                        "ipv": 0,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 200000000,
+                        "high": 400000000,
+                        "state": 0,
+                        "ipv": 0,
+                        "octets": 500000
+                    }
+                ]
+            },
+            {
+                "name": "PRIORITIES",
+                "period": 800000000,
+                "time_shift": 0,
+                "intervals": [
+                    {
+                        "low": 0,
+                        "high": 100000000,
+                        "state": 1,
+                        "ipv": 0,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 100000000,
+                        "high": 200000000,
+                        "state": 1,
+                        "ipv": 1,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 200000000,
+                        "high": 300000000,
+                        "state": 1,
+                        "ipv": 2,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 30000000,
+                        "high": 400000000,
+                        "state": 1,
+                        "ipv": 3,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 400000000,
+                        "high": 500000000,
+                        "state": 1,
+                        "ipv": 4,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 500000000,
+                        "high": 600000000,
+                        "state": 1,
+                        "ipv": 5,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 600000000,
+                        "high": 700000000,
+                        "state": 1,
+                        "ipv": 6,
+                        "octets": 500000
+                    },
+                    {
+                        "low": 700000000,
+                        "high": 800000000,
+                        "state": 1,
+                        "ipv": 7,
+                        "octets": 500000
+                    }
+                ]
+            }
+        ]
+    },
+    "tas": {
+        "gcl_to_port_mapping": [
+            {
+                "port": 152,
+                "gcl": "CYCLIC_PRIOS"
+            }
+        ],
+        "gcls": [
+            {
+                "name": "FIFTYFIFTY",
+                "period": 400000000,
+                "guard_band_width": 0,
+                "time_slices": [
+                    {
+                        "low": 0,
+                        "high": 200000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 200000000,
+                        "high": 400000000,
+                        "queue_states": {
+                            "0": 0,
+                            "1": 0,
+                            "2": 0,
+                            "3": 0,
+                            "4": 0,
+                            "5": 0,
+                            "6": 0,
+                            "7": 0
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "CLOSED",
+                "period": 400000000,
+                "guard_band_width": 0,
+                "time_slices": [
+                    {
+                        "low": 0,
+                        "high": 400000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "OPEN",
+                "period": 400000000,
+                "guard_band_width": 0,
+                "time_slices": [
+                    {
+                        "low": 0,
+                        "high": 400000000,
+                        "queue_states": {
+                            "0": 0,
+                            "1": 0,
+                            "2": 0,
+                            "3": 0,
+                            "4": 0,
+                            "5": 0,
+                            "6": 0,
+                            "7": 0
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "CYCLIC_PRIOS",
+                "period": 400000,
+                "guard_band_width": 50,
+                "time_slices": [
+                    {
+                        "low": 0,
+                        "high": 50000,
+                        "queue_states": {
+                            "0": 0,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 50000,
+                        "high": 100000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 0,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 100000,
+                        "high": 150000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 0,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 150000,
+                        "high": 200000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 0,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 200000,
+                        "high": 250000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 0,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 250000,
+                        "high": 300000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 0,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 300000,
+                        "high": 350000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 0,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 350000,
+                        "high": 400000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 0
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "CYCLIC_PRIOS_DIFFERENT_INTERVALS",
+                "period": 920000000,
+                "guard_band_width": 50,
+                "time_slices": [
+                    {
+                        "low": 0,
+                        "high": 100000000,
+                        "queue_states": {
+                            "0": 0,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 100000000,
+                        "high": 300000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 0,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 300000000,
+                        "high": 350000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 0,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 350000000,
+                        "high": 400000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 0,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 400000000,
+                        "high": 520000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 0,
+                            "5": 1,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 520000000,
+                        "high": 600000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 0,
+                            "6": 1,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 600000000,
+                        "high": 900000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 0,
+                            "7": 1
+                        }
+                    },
+                    {
+                        "low": 900000000,
+                        "high": 920000000,
+                        "queue_states": {
+                            "0": 1,
+                            "1": 1,
+                            "2": 1,
+                            "3": 1,
+                            "4": 1,
+                            "5": 1,
+                            "6": 1,
+                            "7": 0
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
