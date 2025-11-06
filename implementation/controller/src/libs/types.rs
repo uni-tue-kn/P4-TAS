@@ -1,6 +1,6 @@
 use macaddr::MacAddr;
-use rbfrt::util::port_manager::AutoNegotiation;
-use rbfrt::util::port_manager::Speed;
+use rbfrt::util::AutoNegotiation;
+use rbfrt::util::Speed;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::Ipv4Addr};
 

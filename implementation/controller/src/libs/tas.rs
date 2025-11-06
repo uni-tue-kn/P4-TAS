@@ -106,7 +106,7 @@ impl TAS {
             // Find port group ID of the port group
             let req: table::Request = table::Request::new("tf2.tm.port.cfg")
                 .match_key("dev_port", MatchValue::exact(mapping.port));
-            let res = switch.get_table_entry(req).await?;
+            let res = switch.get_table_entries(req).await?;
             let port_cfg = res.first().unwrap();
             let pg_id = port_cfg.get_action_data("pg_id")?.as_u32();
 
@@ -156,7 +156,7 @@ impl TAS {
         // TODO move this into a global mapping struct
         let req: table::Request =
             table::Request::new("tf2.tm.port.cfg").match_key("dev_port", MatchValue::exact(port));
-        let res = switch.get_table_entry(req).await?;
+        let res = switch.get_table_entries(req).await?;
         let port_cfg = res.first().unwrap();
         let pg_id = port_cfg.get_action_data("pg_id")?.as_u32();
 

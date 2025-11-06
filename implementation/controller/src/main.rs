@@ -4,7 +4,7 @@ use libs::types::*;
 use macaddr::MacAddr;
 use rbfrt::error::RBFRTError;
 use rbfrt::table::{MatchValue, Request, ToBytes};
-use rbfrt::util::port_manager::{AutoNegotiation, Loopback, Port, Speed, FEC};
+use rbfrt::util::{AutoNegotiation, Loopback, Port, Speed, FEC};
 use rbfrt::util::{PortManager, PrettyPrinter};
 use rbfrt::{register, table, SwitchConnection};
 use serde_json::json;
@@ -29,7 +29,7 @@ pub async fn sync_register(switch: &SwitchConnection, register_name: &str) {
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Create switch class and set attributes
     // Assumes you forwarded the port via ssh -L ${port}:127.0.0.1:${port} -N ${tofino_name}
-    let switch = SwitchConnection::new("localhost", 50052) // ip and port to reach tofino
+    let switch = SwitchConnection::builder("localhost", 50052) // ip and port to reach tofino
         .device_id(0)
         .client_id(1)
         .p4_name("p4_tas") // Name of P4 program without "".p4"
@@ -258,56 +258,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn read_q_depth(switch: &Arc<SwitchConnection>) {
-    let mut table_requests = vec![];
-
-    let mut queue_depths: HashMap<u8, Vec<(u128, u64)>> = HashMap::new();
-
-    for q in 0..8 {
-        queue_depths.insert(q, vec![]);
-        let req = table::Request::new("tf2.tm.counter.queue")
-            .match_key("pg_id", MatchValue::exact(7))
-            .match_key("pg_queue", MatchValue::exact(q))
-            .pipe(1);
-        table_requests.push(req);
-    }
-
-    let now = SystemTime::now();
-
-    while now.elapsed().unwrap().as_secs() < 5 {
-        let sync = table::Request::new("tf2.tm.counter.queue")
-            .operation(table::TableOperation::SyncCounters);
-
-        if switch.execute_operation(sync).await.is_err() {
-            warn! {"Encountered error while synchronizing {}.", "tf2.tm.counter.queue"};
-        }
-        let res = switch
-            .get_table_entries(table_requests.clone())
-            .await
-            .unwrap();
-
-        for t in res {
-            let queue = t.get_key("pg_queue").unwrap().get_exact_value()[0];
-            let depth = t
-                .get_action_data("usage_cells")
-                .unwrap()
-                .get_data()
-                .to_u64();
-            queue_depths
-                .entry(queue)
-                .and_modify(|d| d.push((now.elapsed().unwrap().as_millis(), depth)));
-        }
-    }
-    //println!("{:?}", serde_json::to_string(&queue_depths).unwrap());
-    let file_path = "output.json";
-
-    // Write the JSON string to the file.
-    match fs::write(file_path, serde_json::to_string(&queue_depths).unwrap()) {
-        Ok(_) => println!("Data successfully written to {}", file_path),
-        Err(e) => eprintln!("Failed to write to file: {}", e),
-    }
-}
-
 async fn read_diff_tas_control(switch: &Arc<SwitchConnection>, pipe: u8) {
     let reg_intra_batch =
         "ingress.tas_control_measurement_c.reg_ts_tas_intra_batch_delay_queue1".to_string();
@@ -529,7 +479,7 @@ async fn debug_prints(
     }
 
     let req: table::Request = table::Request::new(table_to_check);
-    let res = switch.get_table_entry(req).await;
+    let res = switch.get_table_entries(req).await;
     tp.print_table(res.unwrap())?;
 
     Ok(())
