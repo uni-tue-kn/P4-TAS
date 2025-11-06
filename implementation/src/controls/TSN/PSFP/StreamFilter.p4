@@ -12,7 +12,7 @@ control StreamFilter(inout header_t hdr,
     Counter<bit<32>, bit<16>>(32, CounterType_t.PACKETS) missed_max_sdu_filter_counter;
     Counter<bit<32>, bit<16>>(512, CounterType_t.PACKETS_AND_BYTES) overall_counter;
     
-    Register<bit<1>, void>(__STREAM_ID_SIZE__, 0) reg_filter_blocked;
+    Register<bit<1>, bit<16>>(__STREAM_ID_SIZE__, 0) reg_filter_blocked;
     RegisterAction<bit<1>, bit<16>, void>(reg_filter_blocked) block_filter = {
         void apply(inout bit<1> value){
             value = 1;

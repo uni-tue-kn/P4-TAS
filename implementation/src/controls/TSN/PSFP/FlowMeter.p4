@@ -9,7 +9,7 @@ control FlowMeter(inout header_t hdr,
     Counter<bit<32>, bit<16>>(512, CounterType_t.PACKETS_AND_BYTES) marked_yellow_counter;
     Counter<bit<32>, bit<16>>(512, CounterType_t.PACKETS_AND_BYTES) marked_green_counter;
 
-    Register<bit<1>, void>(2048, 0) reg_meter_blocked;
+    Register<bit<1>, bit<11>>(2048, 0) reg_meter_blocked;
     RegisterAction<bit<1>, bit<16>, void>(reg_meter_blocked) block_meter = {
         void apply(inout bit<1> value){
             value = 1;
