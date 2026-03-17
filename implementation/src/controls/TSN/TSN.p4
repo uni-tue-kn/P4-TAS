@@ -283,7 +283,6 @@ control TSN(inout header_t hdr,
                     if (is_hyperperiod_done == 0){
                         // Only send a digest for the first hyperperiod done.
                         // Otherwise we would flood the control plane with digests
-                        // This triggers the initial population of sGCLs
                         ig_dprsr_md.digest_type = 6;
                     }
                     // Currently not used
@@ -347,9 +346,6 @@ control TSN(inout header_t hdr,
                 if (ig_md.to_be_dropped == 1){
                     ig_dprsr_md.drop_ctl = 0x3;
                 }
-
-                // This header should only exit the switch for a TAS control packet which is not the case here
-                hdr.gcl_time.setInvalid();
             }
         }   
     }

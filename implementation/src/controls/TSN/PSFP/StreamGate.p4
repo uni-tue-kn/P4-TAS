@@ -8,7 +8,7 @@ control StreamGate(inout header_t hdr,
     DirectCounter<bit<32>>(CounterType_t.PACKETS_AND_BYTES) stream_gate_counter;
     Counter<bit<32>, bit<12>>(32, CounterType_t.PACKETS) not_passed_gate_counter;
     Counter<bit<32>, bit<12>>(32, CounterType_t.PACKETS) missed_interval_counter;    
-    Register<bit<1>, bit<11>>(2048, 0) reg_gate_blocked;
+    Register<bit<1>, bit<12>>(2048, 0) reg_gate_blocked;
     RegisterAction<bit<1>, bit<12>, void>(reg_gate_blocked) block_gate = {
         void apply(inout bit<1> value){
             value = 1;

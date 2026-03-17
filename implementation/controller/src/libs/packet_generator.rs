@@ -17,8 +17,6 @@ pub struct PacketGenerator {}
 
 impl PacketGenerator {
     pub async fn enable_pkt_gen(switch: &Arc<SwitchConnection>) -> Result<(), RBFRTError> {
-        // TODO only active for configured pipes
-
         let req: Vec<Request> = TG_PIPE_PORTS_TF2
             .iter()
             .copied()
@@ -96,6 +94,7 @@ impl PacketGenerator {
 
     pub async fn reset_packet_generator(switch: &Arc<SwitchConnection>) -> Result<(), RBFRTError> {
         let app_ids: Vec<u8> = (0..16).collect();
+        let mut table_requests = vec![];
 
         let update_requests: Vec<Request> = app_ids
             .iter()
@@ -106,11 +105,28 @@ impl PacketGenerator {
                     .action_data("app_enable", false)
             })
             .collect();
+        table_requests.extend(update_requests);
 
-        switch.update_table_entries(update_requests).await?;
+        let req: Vec<Request> = TG_PIPE_PORTS_TF2
+            .iter()
+            .copied()
+            .map(|x| {
+                Request::new(PORT_CFG_TF2)
+                    .match_key("dev_port", MatchValue::exact(x))
+                    .action_data("pktgen_enable", false)
+            })
+            .collect();
+        table_requests.extend(req);
+        info!("Deactivated traffic gen capabilities.");
+
+        switch.update_table_entries(table_requests).await?;
+
+        // Clear periodicity registers
         let hyperperiod_registers = vec![
             "ingress.tsn_c.lower_last_ts",
             "ingress.tsn_c.higher_last_ts",
+            "ingress.tsn_c.tas_lower_last_ts",
+            "ingress.tsn_c.tas_higher_last_ts",
             "ingress.tsn_c.hyperperiod_done",
             "ingress.tsn_c.period_count",
         ];

@@ -32,7 +32,8 @@ const bit<48> MAXIMUM_48_BIT_TS = 281474976710655;
 enum bit<16> ether_type_t {
     IPV4  = 0x0800,
     MPLS  = 0x8847,
-    ETH_802_1Q  = 0x8100
+    ETH_802_1Q  = 0x8100,
+    PTP = 0x88f7
 }
 
 enum bit<8> ip_type_t {
@@ -82,6 +83,60 @@ header ipv4_t {
     ipv4_addr_t dstAddr;
 }
 
+header ptp_1_h {
+    bit<4> major_sdoid;
+    bit<4> msg_type;
+    bit<4> minor_version;
+    bit<4> version;
+    bit<16> msg_length;
+    bit<8> domain_number;
+    bit<8> minor;
+    bit<16> flags;
+}
+
+header ptp_correction_field_h {
+    /*
+    bit<48> cf_ns;
+    bit<16> cf_sub_ns;    
+    */
+    bit<64> cf;
+}
+
+header ptp_2_h {
+    bit<32> msg_type_specific;
+    bit<64> clock_identity;
+    bit<16> source_port_id;
+    bit<16> sequence_id;
+    bit<8> control_bits;
+    bit<8> log_message_interval;
+    bit<48> timestamp;
+    bit<32> timestamp_nanoseconds;
+}
+
+header ptp_ingress_ts_h {
+    bit<48> ingress_ts;
+}
+
+header ptp_no_cf_h {
+    bit<4> major_sdoid;
+    bit<4> msg_type;
+    bit<4> minor_version;
+    bit<4> version;
+    bit<16> msg_length;
+    bit<8> domain_number;
+    bit<8> minor;
+    bit<16> flags;
+  
+    bit<32> msg_type_specific;
+    bit<64> clock_identity;
+    bit<16> source_port_id;
+    bit<16> sequence_id;
+    bit<8> control_bits;
+    bit<8> log_message_interval;
+    bit<48> timestamp;
+    bit<32> timestamp_nanoseconds;
+}
+
 /*
 This header will be recirculated from egress back to ingress
 */
@@ -114,8 +169,13 @@ struct header_t {
     recirc_t recirc;
     bridge_t bridge;
     gcl_time_t gcl_time;
+    ptp_metadata_t ptp_metadata; // Tofino-internal type
     ethernet_t ethernet;
     eth_802_1q_t eth_802_1q;
+    ptp_1_h ptp_1;
+    ptp_correction_field_h ptp_correction_field;
+    ptp_2_h ptp_2;
+    ptp_ingress_ts_h ptp_ingress_ts;
     mpls_h[16]       mpls;
     ipv4_t ipv4;
     transport_t transport;
@@ -186,6 +246,9 @@ struct ingress_metadata_t {
     bit<48> hyperperiod_ts;
 
     bit<20> s_label;
+    bit<48> ingress_ts;
+
+    bit<64> ingress_timestamp; // For PTP residence time correction
 }
 
 struct bytes_in_period_t {

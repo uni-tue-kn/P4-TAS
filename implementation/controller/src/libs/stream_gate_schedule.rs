@@ -24,8 +24,7 @@ impl StreamGateControlList {
         let mut cur = start;
 
         while cur <= end {
-            let remaining = end - cur;
-            if remaining == 0 {
+            if cur == end {
                 // Handle a single value case explicitly
                 let req = Request::new("ingress.tsn_c.stream_gate_c.stream_gate_instance")
                     .match_key(
@@ -42,11 +41,12 @@ impl StreamGateControlList {
                 break;
             }
 
-            let max_block_size = 1 << (31 - remaining.leading_zeros()); // largest power of two ≤ remaining
+            let num_remaining = end - cur + 1; // count of values in [cur, end]
+            let max_block_size = 1u32 << (31 - num_remaining.leading_zeros()); // largest power of two ≤ count
             let align_size = if cur == 0 {
-                1
+                1u32 << 31 // cur == 0 is maximally aligned
             } else {
-                1 << cur.trailing_zeros()
+                1u32 << cur.trailing_zeros()
             }; // alignment constraint
             let size = max_block_size.min(align_size);
 
@@ -124,6 +124,56 @@ impl StreamGateControlList {
         table_requests
     }
 
+    pub fn write_all_schedules(config: &Configuration, app_state: &mut AppState) -> Vec<Request> {
+        let mut table_requests = Vec::new();
+
+        let app_id_mappings = match &config.psfp.app_id_mappings {
+            Some(mappings) => mappings,
+            None => return table_requests,
+        };
+
+        for app_id_mapping in app_id_mappings {
+            let schedule_name = config
+                .psfp
+                .stream_gates
+                .iter()
+                .find(|m| m.stream_gate_id == app_id_mapping.stream_gate_id)
+                .expect("Schedule to stream gate mapping not found")
+                .schedule
+                .clone();
+
+            let stream_gate_schedule = config
+                .psfp
+                .stream_gate_schedules
+                .iter()
+                .find(|s| s.name == schedule_name)
+                .expect("Stream gate schedule not found");
+
+            let stream_gate = config
+                .psfp
+                .stream_gates
+                .iter()
+                .find(|g| g.schedule == schedule_name)
+                .unwrap();
+
+            for t in stream_gate_schedule.intervals.clone() {
+                let ternary_entries = StreamGateControlList::range_to_ternary_entries(
+                    stream_gate.stream_gate_id,
+                    t.low,
+                    t.high,
+                    t.state,
+                    t.ipv,
+                    app_state.unique_interval_identifier,
+                    t.octets,
+                );
+                app_state.unique_interval_identifier += 1;
+                table_requests.extend(ternary_entries);
+            }
+        }
+
+        table_requests
+    }
+
     pub async fn monitor_digests(
         switch: &Arc<SwitchConnection>,
         config: &Arc<Configuration>,
@@ -138,11 +188,6 @@ impl StreamGateControlList {
                 let port = data.get("stream_gate_id").unwrap().to_u32();
                 let app_id = data.get("app_id").unwrap().to_u32();
                 let pipe_id = data.get("pipe_id").unwrap().to_u32();
-
-                let table_requests =
-                    StreamGateControlList::write_schedule(config, app_state, app_id as u8).await;
-
-                let _ = switch.write_table_entries(table_requests).await;
 
                 println!(
                     "Got a digest with stream_gate_id: {:?}, app_id {:?}:, pipe_id {:?}",

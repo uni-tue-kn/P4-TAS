@@ -1,4 +1,3 @@
-use log::info;
 use macaddr::MacAddr;
 use rbfrt::table;
 use rbfrt::table::{MatchValue, Request};

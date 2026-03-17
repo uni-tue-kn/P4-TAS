@@ -3,18 +3,24 @@ use libs::packet_generator::PacketGenerator;
 use libs::types::*;
 use macaddr::MacAddr;
 use rbfrt::error::RBFRTError;
-use rbfrt::table::{MatchValue, Request, ToBytes};
+use rbfrt::table::{MatchValue, Request};
 use rbfrt::util::{AutoNegotiation, Loopback, Port, Speed, FEC};
 use rbfrt::util::{PortManager, PrettyPrinter};
 use rbfrt::{register, table, SwitchConnection};
 use serde_json::json;
-use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-use tokio::sync::Mutex;
+use std::time::Duration;
+use tokio::sync::{watch, Mutex};
+
+use rbfrt::thrift_client;
+use rbfrt::thrift_generated::ts::TsSyncClient;
 
 use log::{info, warn};
+
+use crate::libs::ptp::{
+    monitor_ptp_l2, populate_ptp_table, wait_for_ptp_sync_and_enable_pktgen, PtpSyncStatus,
+};
 
 mod libs;
 
@@ -37,6 +43,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Could not create switch connection!"); // Crash if cannot connect to switch
 
+    // Connect thrift
+    let (i, o) = thrift_client::connect("localhost:9090", "ts")?;
+    let mut thift_ts_client = TsSyncClient::new(i, o);
+
     // Reset previous port coonfiguration
     switch.clear_table("$PORT").await?;
 
@@ -44,6 +54,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // else write_table_entry returns an error if the entry already exists
     let tables: Vec<&str> = vec![
         "ingress.layer_2_forwarding",
+        "ingress.ptp_c.ptp",
+        "egress.ptp",
         "ingress.tsn_c.app_id_tas",
         "ingress.tsn_c.batch_id_to_port",
         "ingress.tsn_c.stream_identification_c.stream_id",
@@ -78,82 +90,169 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut port_requests: Vec<Port> = vec![];
     let mut table_requests: Vec<Request> = vec![];
 
-    // TODO move into config file
-    let hosts = vec![
-        Host {
-            name: "p4tg-pazuzu-1".to_string(),
-            auto_neg_in: AutoNegotiation::PM_AN_DEFAULT,
-            port: 5,
-            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x40]),
-            egress_port: 5,
-            auto_neg_eg: AutoNegotiation::PM_AN_DEFAULT,
-            speed: Speed::BF_SPEED_100G,
-        },
-        Host {
-            name: "p4tg-pazuzu-2".to_string(),
-            auto_neg_in: AutoNegotiation::PM_AN_DEFAULT,
-            port: 6,
-            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x41]),
-            egress_port: 6,
-            auto_neg_eg: AutoNegotiation::PM_AN_DEFAULT,
-            speed: Speed::BF_SPEED_100G,
-        },
-        Host {
-            name: "p4tg-pazuzu-3".to_string(),
-            auto_neg_in: AutoNegotiation::PM_AN_DEFAULT,
-            port: 7,
-            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x42]),
-            egress_port: 7,
-            auto_neg_eg: AutoNegotiation::PM_AN_DEFAULT,
-            speed: Speed::BF_SPEED_100G,
-        },
-        Host {
-            name: "p4tg-pazuzu-4".to_string(),
-            auto_neg_in: AutoNegotiation::PM_AN_DEFAULT,
-            port: 4,
-            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x43]),
-            egress_port: 4,
-            auto_neg_eg: AutoNegotiation::PM_AN_DEFAULT,
-            speed: Speed::BF_SPEED_100G,
-        },
-        Host {
-            name: "measurement-donnie".to_string(),
-            auto_neg_in: AutoNegotiation::PM_AN_DEFAULT,
+    // Port configuration: one entry per physical port
+    let ports = vec![
+        PortConfig {
             port: 3,
-            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x48]),
-            egress_port: 3,
-            auto_neg_eg: AutoNegotiation::PM_AN_DEFAULT,
+            channel: 0,
             speed: Speed::BF_SPEED_400G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: Some(FEC::BF_FEC_TYP_REED_SOLOMON),
         },
+        PortConfig {
+            port: 4,
+            channel: 0,
+            speed: Speed::BF_SPEED_100G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: None,
+        },
+        PortConfig {
+            port: 5,
+            channel: 0,
+            speed: Speed::BF_SPEED_100G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: None,
+        },
+        PortConfig {
+            port: 6,
+            channel: 0,
+            speed: Speed::BF_SPEED_100G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: None,
+        },
+        PortConfig {
+            port: 7,
+            channel: 0,
+            speed: Speed::BF_SPEED_100G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: None,
+        },
+        PortConfig {
+            port: 1,
+            channel: 0,
+            speed: Speed::BF_SPEED_400G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: Some(FEC::BF_FEC_TYP_REED_SOLOMON),
+        }, // TSN-Multihop --> Donnie
+        PortConfig {
+            port: 9,
+            channel: 0,
+            speed: Speed::BF_SPEED_10G,
+            auto_neg: AutoNegotiation::PM_AN_FORCE_DISABLE,
+            fec: None,
+        }, // PTP
+        PortConfig {
+            port: 31,
+            channel: 0,
+            speed: Speed::BF_SPEED_10G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: None,
+        }, // PTP
+        PortConfig {
+            port: 33,
+            channel: 2,
+            speed: Speed::BF_SPEED_10G,
+            auto_neg: AutoNegotiation::PM_AN_DEFAULT,
+            fec: None,
+        }, // PTP
     ];
 
-    for host in &hosts {
-        // Configure ingress port
-        let mut port = Port::new(host.port, 0)
-            .speed(host.speed.clone())
-            .auto_negotiation(host.auto_neg_in.clone());
-        if host.speed.clone() == Speed::BF_SPEED_400G {
-            port = port.fec(FEC::BF_FEC_TYP_REED_SOLOMON)
+    // L2 forwarding rules: dst MAC -> egress port
+    let l2_forwarding = vec![
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x40]),
+            egress_port: 5,
+            egress_channel: 0,
+        }, // p4tg-pazuzu-1
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x41]),
+            egress_port: 6,
+            egress_channel: 0,
+        }, // p4tg-pazuzu-2
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x42]),
+            egress_port: 7,
+            egress_channel: 0,
+        }, // p4tg-pazuzu-3
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x43]),
+            egress_port: 4,
+            egress_channel: 0,
+        }, // p4tg-pazuzu-4
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x81, 0xE7, 0x9D, 0xE3, 0xAD, 0x48]),
+            egress_port: 3,
+            egress_channel: 0,
+        }, // measurement-donnie
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x21, 0x7F, 0xA2, 0xA9, 0xE1, 0xC9]),
+            egress_port: 1,
+            egress_channel: 0,
+        }, // multihop-tsn -> donnie
+        /*L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x01, 0x1b, 0x19, 0x00, 0x00, 0x00]),
+            egress_port: 33,
+            egress_channel: 2,
+        },*/
+        L2ForwardingEntry {
+            eth_dst: MacAddr::from([0x98, 0x03, 0x9b, 0x84, 0xaa, 0x8e]),
+            egress_port: 9,
+            egress_channel: 0,
+        }, // control plane -> pennywise
+    ];
+
+    for pc in &ports {
+        let mut port = Port::new(pc.port, pc.channel)
+            .speed(pc.speed.clone())
+            .auto_negotiation(pc.auto_neg.clone());
+        if let Some(fec) = &pc.fec {
+            port = port.fec(fec.clone());
         }
         port_requests.push(port);
+    }
 
-        // Configure egress port
-        let egress_port = Port::new(host.egress_port, 0)
-            .speed(host.speed.clone())
-            .auto_negotiation(host.auto_neg_eg.clone());
-        port_requests.push(egress_port);
-
-        // Configure Layer 2 Forwarding
+    for entry in &l2_forwarding {
         let req = table::Request::new("ingress.layer_2_forwarding")
             .match_key(
                 "hdr.ethernet.dst_addr",
-                MatchValue::exact(host.eth_dst.as_bytes().to_vec()),
+                MatchValue::exact(entry.eth_dst.as_bytes().to_vec()),
             )
             .action("ingress.forward")
-            .action_data("port", pm.dev_port(host.egress_port, 0).unwrap());
+            .action_data(
+                "port",
+                pm.dev_port(entry.egress_port, entry.egress_channel)
+                    .unwrap(),
+            );
         table_requests.push(req);
     }
 
+    // PTP multicasting
+    let _ = delete_simple_multicast_group(&switch, 100).await; // Delete group if it already exists
+    let _ = create_simple_multicast_group(
+        &switch,
+        100,
+        &[
+            pm.dev_port(31, 0).unwrap(),
+            pm.dev_port(33, 2).unwrap(),
+            //pm.dev_port(9, 0).unwrap(), // for debugging only
+        ],
+    )
+    .await;
+    let req = table::Request::new("ingress.layer_2_forwarding")
+        .match_key(
+            "hdr.ethernet.dst_addr",
+            MatchValue::exact(
+                MacAddr::from([0x01, 0x1b, 0x19, 0x00, 0x00, 0x00])
+                    .as_bytes()
+                    .to_vec(),
+            ),
+        )
+        .action("ingress.multicast_forward")
+        .action_data("mcid", 100);
+
+    table_requests.push(req);
+
+    // Not sure if still needed...
     let recirc_requests: Vec<Port> = RECIRC_PIPE_PORTS_TF2
         .into_iter()
         .map(|p| {
@@ -177,10 +276,19 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut app_state: AppState = AppState::new();
+
+    // Configure all the GCLs for TAS and PSFP
     let mut configuration = Configuration::new("configuration.json".to_string()).unwrap();
     configuration.insert_tas_gsi();
     configuration.configure_app_ids_stream_gate_hyperperiod(&mut app_state);
     configuration.configure_app_ids_tas_hyperperiod(&mut app_state);
+    let pktgen_activation_gm_time = configuration.pktgen_activation_gm_time.clone();
+
+    // Write PSFP GCLs
+    table_requests.extend(StreamGateControlList::write_all_schedules(
+        &configuration,
+        &mut app_state,
+    ));
 
     let switch_arc = Arc::new(switch);
     let config_arc = Arc::new(configuration);
@@ -189,6 +297,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let switch_clone = Arc::clone(&switch_arc);
     let config_clone = Arc::clone(&config_arc);
     let app_state_clone = Arc::clone(&app_state_arc);
+
+    // Start digest monitor. Currently only used for debugging
     tokio::spawn(async move {
         info!("Started Digest Monitor");
         loop {
@@ -198,64 +308,127 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Reset and reconfigure packet generator.
+    // Packet generation will start once PTP is synchronized and estimated PTP time reaches
+    // ptp_time_plus_2min(configuration.pktgen_activation_gm_time).
     PacketGenerator::reset_packet_generator(&switch_arc).await?;
-
-    PacketGenerator::enable_pkt_gen(&switch_arc).await?;
     PacketGenerator::activate_traffic_gen_applications(&config_arc, &switch_arc).await?;
 
-    let tp: PrettyPrinter = PrettyPrinter::new();
-
+    // Configure queues for AFC
     TAS::configure_afc_pipes(&switch_arc).await?;
     TAS::configure_afc_ports(&switch_arc, &config_arc).await?;
+
+    // Write TAS GCL
     table_requests.extend(
         TAS::configure_tas_queue_id(&switch_arc, &config_arc)
             .await
             .unwrap(),
     );
-    table_requests.extend(TAS::configure_tas_control_recirculation());
-    table_requests.extend(Configuration::configure_stream_identification(&config_arc));
-    table_requests.extend(Configuration::configure_flow_meter(&config_arc));
 
+    // Recirculation port is set to identify packet in egress, but packet is never recirculated! It is dropped in egress.
+    table_requests.extend(TAS::configure_tas_control_recirculation());
+    table_requests.extend(PacketGenerator::configure_app_ids(&config_arc));
+    // Stream Identification
+    table_requests.extend(Configuration::configure_stream_identification(&config_arc));
+    // PSFP Flow Meters
+    table_requests.extend(Configuration::configure_flow_meter(&config_arc));
+    // Underflow calculation for periodicity check
     table_requests.extend(DeltaAdjustment::init_underflow_detection_table());
 
-    /*
-    table_requests.extend(DeltaAdjustment::init_clock_drift_offset_detection_table(
-        &config_arc,
-    ));
-     */
-
-    table_requests.extend(PacketGenerator::configure_app_ids(&config_arc));
-    //table_requests.extend(StreamGateControlList::configure_tas_queue_id());
-
+    // PTP stuff
+    let ifname = "enp4s0f1".to_string();
+    table_requests.extend(populate_ptp_table()?);
     switch_arc.write_table_entries(table_requests).await?;
+
+    // Create PTP sync status channel
+    let (ptp_sync_tx, ptp_sync_rx) = watch::channel(PtpSyncStatus::Initializing);
+
+    // Start PTP monitor with sync status sender
+    let domain = Some(0u8);
+    tokio::spawn(async move {
+        info!("Started PTP L2 Monitor");
+        if let Err(e) = monitor_ptp_l2(&ifname, domain, &mut thift_ts_client, ptp_sync_tx).await {
+            warn!("PTP L2 monitor exited: {e}");
+        }
+    });
+    //PacketGenerator::enable_pkt_gen(&switch_arc).await?;
+
+    // Spawn packet generator activation task that waits for PTP sync
+    let switch_for_pktgen = Arc::clone(&switch_arc);
+    tokio::spawn(async move {
+        wait_for_ptp_sync_and_enable_pktgen(
+            ptp_sync_rx,
+            switch_for_pktgen,
+            pktgen_activation_gm_time,
+        )
+        .await;
+    });
+
+    let tp: PrettyPrinter = PrettyPrinter::new();
 
     // Keep Controller alive
     loop {
-        //debug_prints(&switch_arc, &tp).await?;
-
-        //read_diff_tas_clock_drift(&switch_arc, 1, &config_arc).await;
-        //read_diff_queue_change(&switch_arc).await;
-        //read_q_depth(&switch_arc).await;
-        //read_diff_tas_control(&switch_arc, 1).await;
-
-        /*
-        println!(
-            "Hyperperiod Stream gate 0 (TAS) {:?}",
-            PacketGenerator::read_hyperperiod_register(&switch_arc, 0).await
-        );
-        println!(
-            "Hyperperiod Stream gate 1 {:?}",
-            PacketGenerator::read_hyperperiod_register(&switch_arc, 1).await
-        );
-        println!(
-            "Hyperperiod Stream gate 2 {:?}",
-            PacketGenerator::read_hyperperiod_register(&switch_arc, 2).await
-        );
-         */
+        debug_prints(&switch_arc, &tp).await?;
 
         // Sleep for 1s
         tokio::time::sleep(Duration::from_secs(3)).await;
     }
+}
+
+/// Creates a simple multicast group.
+///
+/// # Arguments
+///
+/// * `switch`: Switch connection.
+/// * `mid`: Multicast group identifier.
+///   This is used as identifier in the data plane.
+/// * `ports`: List of dev ports for the multicast group
+pub async fn create_simple_multicast_group(
+    switch: &SwitchConnection,
+    mid: u16,
+    ports: &[u32],
+) -> Result<(), RBFRTError> {
+    // create node id
+    let req = table::Request::new("$pre.node")
+        .match_key("$MULTICAST_NODE_ID", MatchValue::exact(mid))
+        .action_data("$MULTICAST_RID", 1)
+        .action_data_repeated("$MULTICAST_LAG_ID", vec![0])
+        .action_data_repeated("$DEV_PORT", ports.to_vec());
+
+    switch.write_table_entry(req).await?;
+
+    let req = table::Request::new("$pre.mgid")
+        .match_key("$MGID", MatchValue::exact(mid))
+        .action_data_repeated("$MULTICAST_NODE_ID", vec![mid])
+        .action_data_repeated("$MULTICAST_NODE_L1_XID_VALID", vec![false])
+        .action_data_repeated("$MULTICAST_NODE_L1_XID", vec![0]);
+
+    switch.write_table_entry(req).await?;
+
+    Ok(())
+}
+
+/// Deletes a simple multicast group.
+///
+/// # Arguments
+///
+/// * `switch`: Switch connection.
+/// * `mid`: Multicast group identifier.
+///   This is used as identifier in the data plane.
+pub async fn delete_simple_multicast_group(
+    switch: &SwitchConnection,
+    mid: u16,
+) -> Result<(), RBFRTError> {
+    let req = table::Request::new("$pre.mgid").match_key("$MGID", MatchValue::exact(mid));
+
+    let _ = switch.delete_table_entry(req).await;
+
+    let req =
+        table::Request::new("$pre.node").match_key("$MULTICAST_NODE_ID", MatchValue::exact(mid));
+
+    let _ = switch.delete_table_entry(req).await;
+
+    Ok(())
 }
 
 async fn read_diff_tas_control(switch: &Arc<SwitchConnection>, pipe: u8) {
@@ -458,13 +631,15 @@ async fn debug_prints(
     switch: &Arc<SwitchConnection>,
     tp: &PrettyPrinter,
 ) -> Result<(), RBFRTError> {
-    //let table_to_check = "egress.identify_queue";
+    let table_to_check = "egress.identify_queue";
     //let table_to_check = "ingress.tsn_c.stream_gate_c.stream_gate_instance";
     //let table_to_check = "ingress.tsn_c.stream_identification_c.stream_id";
     //let table_to_check = "ingress.tsn_c.flow_meter_c.flow_meter_instance";
-    let table_to_check = "egress.tas_c.gate_control_list";
+    //let table_to_check = "egress.tas_c.gate_control_list";
     //let table_to_check = "ingress.tsn_c.detnet_tsn_relay_c.detnet_active_stream_id";
     //let table_to_check = "ingress.layer_2_forwarding";
+    //let table_to_check = "egress.ptp";
+    //let table_to_check = "ingress.ptp_c.ptp";
     //let table_to_check = "egress.count_priority";
     //let table_to_check = "ingress.tsn_c.delta_adjustment_c.hyperperiod_exceeded_detection";
     //let table_to_check = "ingress.tsn_c.delta_adjustment_c.underflow_detection";

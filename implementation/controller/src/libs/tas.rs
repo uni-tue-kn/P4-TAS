@@ -56,8 +56,7 @@ impl TAS {
         let mut cur = start;
 
         while cur <= end {
-            let remaining = end - cur;
-            if remaining == 0 {
+            if cur == end {
                 // Handle a single value case explicitly
                 let req = Request::new("egress.tas_c.gate_control_list")
                     .match_key("hdr.gcl_time.diff_ts", MatchValue::ternary(cur, 0xFFFFFFFF)) // exact match
@@ -71,11 +70,12 @@ impl TAS {
                 break;
             }
 
-            let max_block_size = 1 << (31 - remaining.leading_zeros()); // largest power of two ≤ remaining
+            let num_remaining = end - cur + 1; // count of values in [cur, end]
+            let max_block_size = 1u32 << (31 - num_remaining.leading_zeros()); // largest power of two ≤ count
             let align_size = if cur == 0 {
-                1
+                1u32 << 31 // cur == 0 is maximally aligned
             } else {
-                1 << cur.trailing_zeros()
+                1u32 << cur.trailing_zeros()
             }; // alignment constraint
             let size = max_block_size.min(align_size);
 
@@ -202,6 +202,8 @@ impl TAS {
                 .unwrap();
             let batch_id = batch_mapping.batch_id;
 
+            let entries_before = table_requests.len();
+
             for t in gcl.time_slices {
                 for (q_id, q_state) in t.queue_states {
                     let pipe_id = mapping.port >> 7;
@@ -224,10 +226,15 @@ impl TAS {
                         action_name,
                         afc_value,
                     );
-
                     table_requests.extend(ternary_entries);
                 }
             }
+
+            let gcl_entries = table_requests.len() - entries_before;
+            info!(
+                "tGCL '{}' (port {}, batch_id {}): {} ternary entries",
+                mapping.gcl, mapping.port, batch_id, gcl_entries
+            );
         }
 
         let temp = table_requests.len();

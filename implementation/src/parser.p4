@@ -94,8 +94,16 @@ parser SwitchIngressParser(
             ether_type_t.IPV4 : parse_ipv4;
             ether_type_t.ETH_802_1Q : parse_802_1q;
             ether_type_t.MPLS : parse_mpls;
+            ether_type_t.PTP: parse_ptp;
             default : accept;
         }
+    }
+
+    state parse_ptp {
+        pkt.extract(hdr.ptp_1);
+        pkt.extract(hdr.ptp_correction_field);
+        pkt.extract(hdr.ptp_2);
+        transition accept;
     }
 
     state parse_mpls {
@@ -163,11 +171,15 @@ control SwitchIngressDeparser(
 
         // Headers for a TAS control packet
         pkt.emit(hdr.timer);
-        pkt.emit(hdr.gcl_time);
 
         // Headers for a normal packet
         pkt.emit(hdr.ethernet);
         pkt.emit(hdr.eth_802_1q);
+        pkt.emit(hdr.ptp_1);
+        pkt.emit(hdr.ptp_correction_field);
+        pkt.emit(hdr.ptp_2);
+        // Contains either the GCL position, or the ingress_ts for PTP
+        pkt.emit(hdr.gcl_time);
         pkt.emit(hdr.mpls);
         pkt.emit(hdr.ipv4);
         pkt.emit(hdr.transport);
@@ -212,8 +224,16 @@ parser SwitchEgressParser(
         transition select(hdr.ethernet.ether_type) {
             ether_type_t.ETH_802_1Q : parse_802_1q;
             ether_type_t.IPV4 : parse_ipv4;
+            ether_type_t.PTP : parse_ptp;
             default : accept;
         }
+    }
+
+    state parse_ptp {
+        pkt.extract(hdr.ptp_1);
+        pkt.extract(hdr.ptp_correction_field);
+        pkt.extract(hdr.ptp_2);
+        transition accept;
     }
 
     state parse_802_1q {
@@ -257,8 +277,13 @@ control SwitchEgressDeparser(
                     hdr.ipv4.dstAddr});
         }
         pkt.emit(hdr.timer);
+        pkt.emit(hdr.ptp_metadata);
         pkt.emit(hdr.ethernet);
         pkt.emit(hdr.eth_802_1q);
+        pkt.emit(hdr.ptp_1);
+        pkt.emit(hdr.ptp_correction_field);
+        pkt.emit(hdr.ptp_2);
+        //pkt.emit(hdr.gcl_time);
         pkt.emit(hdr.mpls);
         pkt.emit(hdr.ipv4);
         pkt.emit(hdr.transport);

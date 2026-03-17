@@ -1,17 +1,22 @@
 use macaddr::MacAddr;
 use rbfrt::util::AutoNegotiation;
 use rbfrt::util::Speed;
+use rbfrt::util::FEC;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::Ipv4Addr};
 
-pub struct Host {
-    pub name: String,
-    pub auto_neg_in: AutoNegotiation,
+pub struct PortConfig {
     pub port: u32,
+    pub channel: u8,
+    pub speed: Speed,
+    pub auto_neg: AutoNegotiation,
+    pub fec: Option<FEC>,
+}
+
+pub struct L2ForwardingEntry {
     pub eth_dst: MacAddr,
     pub egress_port: u32,
-    pub auto_neg_eg: AutoNegotiation,
-    pub speed: Speed,
+    pub egress_channel: u8,
 }
 
 pub struct AppState {
@@ -19,8 +24,14 @@ pub struct AppState {
     pub unique_interval_identifier: u32,
 }
 
+fn default_pktgen_activation_gm_time() -> String {
+    "1772647368.495519698".to_string()
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Configuration {
+    #[serde(default = "default_pktgen_activation_gm_time")]
+    pub pktgen_activation_gm_time: String,
     pub psfp: PSFP,
     pub tas: TAS,
 }
