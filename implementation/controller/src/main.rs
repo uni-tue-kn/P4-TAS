@@ -368,7 +368,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     // Keep Controller alive
     loop {
-        debug_prints(&switch_arc, &tp).await?;
+        //debug_prints(&switch_arc, &tp).await?;
 
         // Sleep for 1s
         tokio::time::sleep(Duration::from_secs(3)).await;
